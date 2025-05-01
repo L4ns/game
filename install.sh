@@ -3,163 +3,101 @@
 # Menghentikan skrip jika terjadi error
 set -e
 
-# Memastikan input API Token dan Private Key
-if [[ -z "$1" || -z "$2" ]]; then
-    echo "⚠️  API Token dan Private Key diperlukan."
-    read -p "Masukkan API Token JWT Anda: " API_TOKEN
-    while [[ -z "$API_TOKEN" ]]; do
-        echo "❌ API Token tidak boleh kosong. Silakan coba lagi."
-        read -p "Masukkan API Token JWT Anda: " API_TOKEN
-    done
+# Konfigurasi default untuk jaringan
+DEFAULT_RPC_URL="https://sepolia.optimism.io"
+DEFAULT_CHAIN_ID=11155111  # Chain ID untuk Sepolia Optimism
 
-    read -p "Masukkan Private Key Anda (format 0x...): " PRIVATE_KEY
-    while [[ -z "$PRIVATE_KEY" ]]; do
-        echo "❌ Private Key tidak boleh kosong. Silakan coba lagi."
-        read -p "Masukkan Private Key Anda (format 0x...): " PRIVATE_KEY
+# Fungsi untuk meminta input pengguna dengan validasi
+function prompt_input() {
+    local variable_name=$1
+    local prompt_message=$2
+    local input_value=""
+    while [[ -z "$input_value" ]]; do
+        read -p "$prompt_message: " input_value
+        if [[ -z "$input_value" ]]; then
+            echo "❌ $variable_name tidak boleh kosong. Silakan coba lagi."
+        fi
     done
-else
-    API_TOKEN=$1
-    PRIVATE_KEY=$2
-fi
+    echo "$input_value"
+}
 
-echo "✅ API Token dan Private Key telah diterima."
+# Meminta API Token dan Private Key dari pengguna
+echo "⚙️  Konfigurasi Deployment"
+API_TOKEN=$(prompt_input "API Token" "Masukkan API Token JWT Anda")
+PRIVATE_KEY=$(prompt_input "Private Key" "Masukkan Private Key Anda (format 0x...)")
+
+# Gunakan RPC URL dan Chain ID default
+RPC_URL=$DEFAULT_RPC_URL
+CHAIN_ID=$DEFAULT_CHAIN_ID
+
+# Menampilkan konfigurasi yang digunakan
+echo "✅ Konfigurasi berhasil diterima:"
 echo "API Token: $API_TOKEN"
 echo "Private Key: $PRIVATE_KEY"
+echo "RPC URL: $RPC_URL (Default)"
+echo "Chain ID: $CHAIN_ID (Default)"
 
-# 1. Cek dan Instal Prasyarat
-echo "🔍 Memeriksa prasyarat..."
-if ! command -v git &> /dev/null; then
-    echo "❌ Git tidak ditemukan. Menginstal Git..."
-    sudo apt-get update
-    sudo apt-get install -y git
-fi
-
-if ! command -v curl &> /dev/null; then
-    echo "❌ Curl tidak ditemukan. Menginstal Curl..."
-    sudo apt-get install -y curl
-fi
-
-if ! command -v bun &> /dev/null; then
-    echo "❌ Bun tidak ditemukan. Menginstal Bun..."
-    curl -fsSL https://bun.sh/install | bash
-    source ~/.bashrc
-    echo "✅ Bun berhasil diinstal."
-fi
-
-if ! command -v forge &> /dev/null; then
-    echo "❌ Forge tidak ditemukan. Menginstal Forge..."
-    curl -L https://foundry.paradigm.xyz | bash
-    source ~/.bashrc
-    foundryup
-    echo "✅ Forge berhasil diinstal."
-fi
-
-if ! command -v vlayer &> /dev/null; then
-    echo "❌ VLayer CLI tidak ditemukan. Menginstal VLayer CLI..."
-    curl -SL https://install.vlayer.xyz | bash
-
-    # Muat ulang shell agar PATH diperbarui
-    echo "🔄 Memuat ulang konfigurasi shell..."
-    source ~/.bashrc
-
-    # Jalankan vlayerup untuk memasang vlayer
-    if command -v vlayerup &> /dev/null; then
-        echo "✅ vlayerup ditemukan. Menjalankan instalasi VLayer..."
-        vlayerup
-    else
-        echo "❌ Error: vlayerup tidak ditemukan setelah instalasi. Periksa kembali instalasi VLayer CLI."
-        exit 1
-    fi
-
-    echo "✅ VLayer CLI berhasil diinstal."
-fi
-
-# 2. Inisialisasi Proyek VLayer
-echo "📂 Menginisialisasi proyek VLayer..."
-mkdir -p game-click-onchain && cd game-click-onchain
+# 1. Inisialisasi Proyek Foundry (jika belum ada)
 if [ ! -f "foundry.toml" ]; then
-    echo "🔧 File foundry.toml tidak ditemukan. Menjalankan forge init..."
+    echo "📂 Menginisialisasi proyek Foundry..."
     forge init || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
+    echo "✅ Proyek Foundry berhasil diinisialisasi."
 fi
-vlayer init --existing || { echo "❌ Error: Gagal menginisialisasi proyek VLayer."; exit 1; }
-echo "✅ Inisialisasi proyek VLayer selesai."
 
-# 3. Build Kontrak Pintar
+# 2. Kompilasi Kontrak
 echo "🔨 Membuild kontrak pintar..."
 forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
 echo "✅ Build kontrak selesai."
 
-# 4. Konfigurasi Testnet
-echo "⚙️ Mengkonfigurasi Testnet..."
-mkdir -p vlayer
-cat <<EOT > vlayer/.env.testnet.local
-VLAYER_API_TOKEN=$API_TOKEN
-EXAMPLES_TEST_PRIVATE_KEY=$PRIVATE_KEY
-CHAIN_NAME=optimismSepolia
-JSON_RPC_URL=https://sepolia.optimism.io
+# 3. Buat atau Perbarui File .env untuk Konfigurasi Jaringan
+echo "⚙️ Mengkonfigurasi jaringan..."
+cat <<EOT > .env
+PRIVATE_KEY=$PRIVATE_KEY
+RPC_URL=$RPC_URL
+CHAIN_ID=$CHAIN_ID
 EOT
-echo "✅ Konfigurasi testnet selesai."
+echo "✅ File .env berhasil dibuat atau diperbarui."
 
-# 5. Install Dependensi Typescript
-echo "📦 Menginstal dependensi Typescript di folder VLayer..."
-cd vlayer
-bun install || { echo "❌ Error: Gagal menginstal dependensi Typescript."; exit 1; }
-cd ..
+# 4. Tambahkan Deployment Script (Jika Belum Ada)
+if [ ! -f "script/Deploy.s.sol" ]; then
+    echo "📜 Menambahkan skrip deployment ke folder script/..."
+    mkdir -p script
+    cat <<EOF > script/Deploy.s.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-# 6. Deploy Kontrak ke Testnet
-echo "🚀 Deploying kontrak ke testnet..."
-cd vlayer
-if ! bun run deploy:testnet; then
-    echo "❌ Error: Gagal mendepoloy kontrak ke testnet."
-    exit 1
-fi
-cd ..
-echo "✅ Kontrak berhasil dideploy ke testnet."
+import "forge-std/Script.sol";
+import "../src/MyContract.sol";
 
-# 7. Menyiapkan Frontend
-echo "🌍 Menyiapkan aplikasi frontend..."
-mkdir -p vlayer/frontend
-cat <<EOF > vlayer/frontend/index.html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Klik On-Chain</title>
-</head>
-<body>
-    <h1>Game Klik On-Chain</h1>
-    <button id="connectWallet">Connect Wallet</button>
-    <div id="walletInfo"></div>
-    <script type="module" src="./script.js"></script>
-</body>
-</html>
-EOF
-
-cat <<EOF > vlayer/frontend/script.js
-import { ethers } from "ethers";
-
-async function connectWallet() {
-    if (typeof window.ethereum !== "undefined") {
-        try {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
-            await provider.send("eth_requestAccounts", []); // Meminta akses ke wallet
-            const signer = provider.getSigner();
-            console.log("Wallet connected:", await signer.getAddress());
-            document.getElementById("walletInfo").innerText = "Wallet: " + await signer.getAddress();
-        } catch (error) {
-            console.error("Error connecting to wallet:", error);
-        }
-    } else {
-        alert("MetaMask is not installed. Please install it to use this app.");
+contract Deploy is Script {
+    function run() external {
+        vm.startBroadcast();
+        new MyContract("Hello, Foundry!");
+        vm.stopBroadcast();
     }
 }
-
-document.getElementById("connectWallet").addEventListener("click", connectWallet);
 EOF
-echo "✅ Aplikasi frontend berhasil disiapkan."
+    echo "✅ Skrip deployment berhasil dibuat."
+fi
 
-# 8. Menjalankan Aplikasi Frontend
-echo "🌍 Menjalankan aplikasi frontend..."
-cd vlayer
-bun run web:dev || { echo "❌ Error: Gagal menjalankan aplikasi frontend."; exit 1; }
+# 5. Lakukan Deployment
+echo "🚀 Deploying kontrak ke jaringan..."
+forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --chain-id $CHAIN_ID --broadcast || { echo "❌ Error: Gagal mendepoloy kontrak."; exit 1; }
+echo "✅ Kontrak berhasil dideploy ke jaringan."
+
+# 6. Verifikasi Kontrak (Opsional)
+echo "⚠️  Apakah Anda ingin memverifikasi kontrak di explorer? (y/n)"
+read -p "Pilihan: " VERIFY_CHOICE
+if [[ "$VERIFY_CHOICE" == "y" || "$VERIFY_CHOICE" == "Y" ]]; then
+    CONTRACT_ADDRESS=$(prompt_input "Contract Address" "Masukkan alamat kontrak yang telah dideploy")
+    COMPILER_VERSION=$(prompt_input "Compiler Version" "Masukkan versi compiler (contoh: v0.8.20+commit.a1b79de6)")
+    forge verify-contract --chain-id $CHAIN_ID --compiler-version $COMPILER_VERSION $CONTRACT_ADDRESS script/Deploy.s.sol || {
+        echo "❌ Error: Gagal memverifikasi kontrak.";
+        exit 1;
+    }
+    echo "✅ Kontrak berhasil diverifikasi."
+else
+    echo "⏩ Melewatkan verifikasi kontrak."
+fi
+
+echo "🎉 Deployment selesai!"
