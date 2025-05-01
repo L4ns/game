@@ -22,19 +22,32 @@ if ! command -v bun &> /dev/null; then
     echo "❌ Bun tidak ditemukan. Menginstal Bun..."
     curl -fsSL https://bun.sh/install | bash
     source ~/.bashrc
+    echo "✅ Bun berhasil diinstal."
 fi
 
 # 2. Instal Foundry
 echo "🔧 Menginstal Foundry..."
 curl -L https://foundry.paradigm.xyz | bash
-source ~/.bashrc
-foundryup
+source ~/.bashrc # Memuat ulang konfigurasi shell
+if command -v foundryup &> /dev/null; then
+    foundryup # Instalasi Foundry
+    echo "✅ Foundry berhasil diinstal."
+else
+    echo "❌ Foundryup tidak ditemukan setelah instalasi. Pastikan PATH sudah diperbarui."
+    exit 1
+fi
 
 # 3. Instal VLayer
 echo "🔧 Menginstal VLayer..."
 curl -SL https://install.vlayer.xyz | bash
-source ~/.bashrc
-vlayerup
+source ~/.bashrc # Memuat ulang konfigurasi shell
+if command -v vlayerup &> /dev/null; then
+    vlayerup
+    echo "✅ VLayer berhasil diinstal."
+else
+    echo "❌ VLayerup tidak ditemukan setelah instalasi. Pastikan PATH sudah diperbarui."
+    exit 1
+fi
 
 # 4. Buat Direktori Proyek
 echo "📂 Membuat direktori proyek..."
