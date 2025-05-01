@@ -53,11 +53,15 @@ if ! command -v vlayer &> /dev/null; then
     echo "✅ VLayer CLI berhasil diinstal."
 fi
 
-# 2. Inisialisasi Proyek VLayer
-echo "📂 Menginisialisasi proyek VLayer..."
-mkdir -p game-click-onchain && cd game-click-onchain
-vlayer init --existing || { echo "❌ Error: Gagal menginisialisasi proyek VLayer."; exit 1; }
-echo "✅ Inisialisasi proyek VLayer selesai."
+# 2. Inisialisasi Proyek Foundry
+echo "📂 Memeriksa keberadaan file 'foundry.toml'..."
+if [ ! -f "foundry.toml" ]; then
+    echo "⚠️  File 'foundry.toml' tidak ditemukan. Menginisialisasi proyek Foundry..."
+    forge init || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
+    echo "✅ Inisialisasi proyek Foundry berhasil."
+else
+    echo "✅ File 'foundry.toml' ditemukan. Melewatkan inisialisasi proyek Foundry."
+fi
 
 # 3. Tambahkan Kontrak Pintar
 echo "📜 Menambahkan file kontrak pintar..."
@@ -112,7 +116,7 @@ EOT
 
 # 4. Build Kontrak Pintar
 echo "🔨 Membuild kontrak pintar..."
-forge build
+forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
 
 # 5. Konfigurasi Testnet
 echo "⚙️ Mengkonfigurasi Testnet..."
@@ -142,17 +146,17 @@ echo "✅ Konfigurasi testnet selesai."
 # 6. Install Dependensi Typescript
 echo "📦 Menginstal dependensi Typescript di folder VLayer..."
 cd vlayer
-bun install
+bun install || { echo "❌ Error: Gagal menginstal dependensi Typescript."; exit 1; }
 cd ..
 
 # 7. Deploy Kontrak ke Testnet
 echo "🚀 Deploying kontrak ke testnet..."
 cd vlayer
-bun run deploy:testnet
+bun run deploy:testnet || { echo "❌ Error: Gagal mendepoloy kontrak."; exit 1; }
 cd ..
 echo "✅ Kontrak berhasil dideploy ke testnet."
 
-# 8. Menjalankan Aplikasi Frontend (Opsional)
+# 8. Jalankan Frontend
 echo "🌍 Menjalankan aplikasi frontend..."
 cd vlayer
 bun run web:dev
