@@ -3,7 +3,7 @@
 # Menghentikan skrip jika terjadi error
 set -e
 
-echo "🚀 Memulai instalasi Game Klik On-Chain..."
+echo "🚀 Memulai instalasi dan deploy Game Klik On-Chain..."
 
 # 1. Cek dan Instal Prasyarat
 echo "🔍 Memeriksa prasyarat..."
@@ -33,8 +33,15 @@ if command -v foundryup &> /dev/null; then
     foundryup # Instalasi Foundry
     echo "✅ Foundry berhasil diinstal."
 else
-    echo "❌ Foundryup tidak ditemukan setelah instalasi. Pastikan PATH sudah diperbarui."
-    exit 1
+    echo "❌ Foundryup tidak ditemukan setelah instalasi. Memuat ulang shell dan mencoba lagi..."
+    source ~/.bashrc # Memuat ulang shell lagi jika gagal
+    if command -v foundryup &> /dev/null; then
+        foundryup
+        echo "✅ Foundry berhasil diinstal setelah memuat ulang shell."
+    else
+        echo "❌ Foundry masih tidak ditemukan. Pastikan PATH sudah diperbarui secara manual."
+        exit 1
+    fi
 fi
 
 # 3. Instal VLayer
@@ -215,7 +222,11 @@ CHAIN_NAME=optimismSepolia
 JSON_RPC_URL=https://sepolia.optimism.io
 EOT
 
-# 8. Jalankan Aplikasi
+# 8. Deploy Aplikasi Frontend
 echo "✅ Instalasi selesai! Menjalankan aplikasi..."
 cd frontend
-npx live-server
+if command -v npx &> /dev/null; then
+    npx live-server
+else
+    echo "❌ Live server tidak ditemukan. Pastikan Anda menginstalnya dengan 'npm install -g live-server'."
+fi
