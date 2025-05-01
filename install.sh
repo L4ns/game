@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Script untuk instalasi lengkap Game Klik On-Chain dengan satu klik
+# Menghentikan skrip jika terjadi error
+set -e
 
 echo "🚀 Memulai instalasi Game Klik On-Chain..."
 
@@ -32,6 +33,7 @@ foundryup
 # 3. Instal VLayer
 echo "🔧 Menginstal VLayer..."
 curl -SL https://install.vlayer.xyz | bash
+source ~/.bashrc
 vlayerup
 
 # 4. Buat Direktori Proyek
