@@ -3,6 +3,25 @@
 # Menghentikan skrip jika terjadi error
 set -e
 
+# Memastikan input API Token dan Private Key
+if [[ -z "$1" || -z "$2" ]]; then
+    echo "⚠️  API Token dan Private Key diperlukan."
+    read -p "Masukkan API Token JWT Anda: " API_TOKEN
+    while [[ -z "$API_TOKEN" ]]; do
+        echo "❌ API Token tidak boleh kosong. Silakan coba lagi."
+        read -p "Masukkan API Token JWT Anda: " API_TOKEN
+    done
+
+    read -p "Masukkan Private Key Anda (format 0x...): " PRIVATE_KEY
+    while [[ -z "$PRIVATE_KEY" ]]; do
+        echo "❌ Private Key tidak boleh kosong. Silakan coba lagi."
+        read -p "Masukkan Private Key Anda (format 0x...): " PRIVATE_KEY
+    done
+else
+    API_TOKEN=$1
+    PRIVATE_KEY=$2
+fi
+
 echo "🚀 Memulai instalasi, inisiasi, deploy, dan menjalankan Game Klik On-Chain dengan VLayer..."
 
 # 1. Cek dan Instal Prasyarat
@@ -70,22 +89,6 @@ echo "✅ Build kontrak selesai."
 
 # 4. Konfigurasi Testnet
 echo "⚙️ Mengkonfigurasi Testnet..."
-
-# Meminta pengguna untuk memasukkan Private Key dan API Token hingga valid
-while [[ -z "$API_TOKEN" ]]; do
-    read -p "Masukkan API Token JWT Anda: " API_TOKEN
-    if [[ -z "$API_TOKEN" ]]; then
-        echo "❌ API Token tidak boleh kosong. Silakan coba lagi."
-    fi
-done
-
-while [[ -z "$PRIVATE_KEY" ]]; do
-    read -p "Masukkan Private Key Anda (format 0x...): " PRIVATE_KEY
-    if [[ -z "$PRIVATE_KEY" ]]; then
-        echo "❌ Private Key tidak boleh kosong. Silakan coba lagi."
-    fi
-done
-
 mkdir -p vlayer
 cat <<EOT > vlayer/.env.testnet.local
 VLAYER_API_TOKEN=$API_TOKEN
@@ -93,7 +96,7 @@ EXAMPLES_TEST_PRIVATE_KEY=$PRIVATE_KEY
 CHAIN_NAME=optimismSepolia
 JSON_RPC_URL=https://sepolia.optimism.io
 EOT
-echo "✅ Konfigurasi testnet selesai dengan API Token dan Private Key yang dimasukkan."
+echo "✅ Konfigurasi testnet selesai."
 
 # 5. Install Dependensi Typescript
 echo "📦 Menginstal dependensi Typescript di folder VLayer..."
