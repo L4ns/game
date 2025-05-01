@@ -25,6 +25,14 @@ if ! command -v bun &> /dev/null; then
     echo "✅ Bun berhasil diinstal."
 fi
 
+if ! command -v forge &> /dev/null; then
+    echo "❌ Forge tidak ditemukan. Menginstal Forge..."
+    curl -L https://foundry.paradigm.xyz | bash
+    source /home/codespace/.bashrc
+    foundryup
+    echo "✅ Forge berhasil diinstal."
+fi
+
 if ! command -v vlayer &> /dev/null; then
     echo "❌ VLayer CLI tidak ditemukan. Menginstal VLayer CLI..."
     curl -SL https://install.vlayer.xyz | bash
