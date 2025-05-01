@@ -53,12 +53,12 @@ if ! command -v vlayer &> /dev/null; then
     echo "✅ VLayer CLI berhasil diinstal."
 fi
 
-# 2. Inisialisasi Proyek Foundry
+# 2. Inisialisasi Proyek Foundry dengan Flag --force
 echo "📂 Memeriksa keberadaan file 'foundry.toml'..."
 if [ ! -f "foundry.toml" ]; then
     echo "⚠️  File 'foundry.toml' tidak ditemukan. Menginisialisasi proyek Foundry..."
-    forge init || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
-    echo "✅ Inisialisasi proyek Foundry berhasil."
+    forge init --force || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
+    echo "✅ Inisialisasi proyek Foundry berhasil (dengan --force)."
 else
     echo "✅ File 'foundry.toml' ditemukan. Melewatkan inisialisasi proyek Foundry."
 fi
