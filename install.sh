@@ -71,12 +71,20 @@ echo "✅ Build kontrak selesai."
 # 4. Konfigurasi Testnet
 echo "⚙️ Mengkonfigurasi Testnet..."
 
-# Meminta pengguna untuk memasukkan Private Key dan API Token jika belum diatur
-read -p "Masukkan API Token JWT (atau tekan Enter untuk langsung menggunakan <MASUKKAN_JWT_TOKEN_ANDA>): " API_TOKEN
-API_TOKEN=${API_TOKEN:-<MASUKKAN_JWT_TOKEN_ANDA>}
+# Meminta pengguna untuk memasukkan Private Key dan API Token hingga valid
+while [[ -z "$API_TOKEN" ]]; do
+    read -p "Masukkan API Token JWT Anda: " API_TOKEN
+    if [[ -z "$API_TOKEN" ]]; then
+        echo "❌ API Token tidak boleh kosong. Silakan coba lagi."
+    fi
+done
 
-read -p "Masukkan Private Key (atau tekan Enter untuk langsung menggunakan 0x<PRIVATE_KEY_ANDA>): " PRIVATE_KEY
-PRIVATE_KEY=${PRIVATE_KEY:-0x<PRIVATE_KEY_ANDA>}
+while [[ -z "$PRIVATE_KEY" ]]; do
+    read -p "Masukkan Private Key Anda (format 0x...): " PRIVATE_KEY
+    if [[ -z "$PRIVATE_KEY" ]]; then
+        echo "❌ Private Key tidak boleh kosong. Silakan coba lagi."
+    fi
+done
 
 mkdir -p vlayer
 cat <<EOT > vlayer/.env.testnet.local
@@ -96,7 +104,10 @@ cd ..
 # 6. Deploy Kontrak ke Testnet
 echo "🚀 Deploying kontrak ke testnet..."
 cd vlayer
-bun run deploy:testnet || { echo "❌ Error: Gagal mendepoloy kontrak ke testnet."; exit 1; }
+if ! bun run deploy:testnet; then
+    echo "❌ Error: Gagal mendepoloy kontrak ke testnet."
+    exit 1
+fi
 cd ..
 echo "✅ Kontrak berhasil dideploy ke testnet."
 
