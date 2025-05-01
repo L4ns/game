@@ -53,21 +53,26 @@ if ! command -v vlayer &> /dev/null; then
     echo "✅ VLayer CLI berhasil diinstal."
 fi
 
-# 2. Inisialisasi Proyek VLayer
-echo "📂 Memeriksa atau menginisialisasi proyek VLayer..."
+# 2. Inisialisasi Proyek Foundry
+echo "📂 Memeriksa atau menginisialisasi proyek Foundry..."
 if [ ! -f "foundry.toml" ]; then
-    echo "⚠️  File 'foundry.toml' tidak ditemukan. Menjalankan 'vlayer init --existing'..."
-    vlayer init --existing || { echo "❌ Error: Gagal menginisialisasi proyek VLayer."; exit 1; }
-    echo "✅ Inisialisasi proyek VLayer selesai."
+    echo "⚠️  File 'foundry.toml' tidak ditemukan. Menjalankan 'forge init'..."
+    forge init || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
+    echo "✅ Inisialisasi proyek Foundry berhasil."
 else
-    echo "✅ File 'foundry.toml' ditemukan. Melewatkan inisialisasi proyek."
+    echo "✅ File 'foundry.toml' ditemukan. Melewatkan inisialisasi proyek Foundry."
 fi
 
-# 3. Build Kontrak Pintar
+# 3. Inisialisasi Proyek VLayer
+echo "📂 Menginisialisasi proyek VLayer..."
+vlayer init --existing || { echo "❌ Error: Gagal menginisialisasi proyek VLayer."; exit 1; }
+echo "✅ Inisialisasi proyek VLayer selesai."
+
+# 4. Build Kontrak Pintar
 echo "🔨 Membuild kontrak pintar..."
 forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
 
-# 4. Konfigurasi Testnet
+# 5. Konfigurasi Testnet
 echo "⚙️ Mengkonfigurasi Testnet..."
 
 # Meminta input pengguna untuk token JWT dan private key
@@ -92,20 +97,20 @@ JSON_RPC_URL=https://sepolia.optimism.io
 EOT
 echo "✅ Konfigurasi testnet selesai."
 
-# 5. Install Dependensi Typescript
+# 6. Install Dependensi Typescript
 echo "📦 Menginstal dependensi Typescript di folder VLayer..."
 cd vlayer
 bun install || { echo "❌ Error: Gagal menginstal dependensi Typescript."; exit 1; }
 cd ..
 
-# 6. Deploy Kontrak ke Testnet
+# 7. Deploy Kontrak ke Testnet
 echo "🚀 Deploying kontrak ke testnet..."
 cd vlayer
 bun run deploy:testnet || { echo "❌ Error: Gagal mendepoloy kontrak."; exit 1; }
 cd ..
 echo "✅ Kontrak berhasil dideploy ke testnet."
 
-# 7. Menjalankan Aplikasi Frontend
+# 8. Menjalankan Aplikasi Frontend
 echo "🌍 Menjalankan aplikasi frontend..."
 cd vlayer
 bun run web:dev || { echo "❌ Error: Gagal menjalankan aplikasi frontend."; exit 1; }
