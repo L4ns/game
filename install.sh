@@ -72,21 +72,17 @@ echo "✅ Build kontrak selesai."
 echo "⚙️ Mengkonfigurasi Testnet..."
 
 # Meminta pengguna untuk memasukkan Private Key dan API Token hingga valid
-while true; do
+while [[ -z "$API_TOKEN" ]]; do
     read -p "Masukkan API Token JWT Anda: " API_TOKEN
     if [[ -z "$API_TOKEN" ]]; then
         echo "❌ API Token tidak boleh kosong. Silakan coba lagi."
-    else
-        break
     fi
 done
 
-while true; do
+while [[ -z "$PRIVATE_KEY" ]]; do
     read -p "Masukkan Private Key Anda (format 0x...): " PRIVATE_KEY
     if [[ -z "$PRIVATE_KEY" ]]; then
         echo "❌ Private Key tidak boleh kosong. Silakan coba lagi."
-    else
-        break
     fi
 done
 
