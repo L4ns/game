@@ -3,7 +3,7 @@
 # Menghentikan skrip jika terjadi error
 set -e
 
-echo "🚀 Memulai instalasi, konfigurasi, dan menjalankan proyek Foundry dengan VLayer tanpa autentikasi..."
+echo "🚀 Memulai instalasi, inisiasi, deploy, dan menjalankan Game Klik On-Chain dengan VLayer..."
 
 # 1. Cek dan Instal Prasyarat
 echo "🔍 Memeriksa prasyarat..."
@@ -31,121 +31,130 @@ if ! command -v forge &> /dev/null; then
     source ~/.bashrc
     foundryup
     echo "✅ Forge berhasil diinstal."
-else
-    echo "✅ Forge sudah terinstal."
 fi
 
-echo "✅ Semua prasyarat terpenuhi."
+if ! command -v vlayer &> /dev/null; then
+    echo "❌ VLayer CLI tidak ditemukan. Menginstal VLayer CLI..."
+    curl -SL https://install.vlayer.xyz | bash
 
-# 2. Inisialisasi Proyek Foundry
-echo "📂 Menginisialisasi proyek Foundry..."
-PROJECT_NAME="game-click-onchain"
-if [ ! -d "$PROJECT_NAME" ]; then
-    mkdir -p $PROJECT_NAME && cd $PROJECT_NAME
+    # Muat ulang shell agar PATH diperbarui
+    echo "🔄 Memuat ulang konfigurasi shell..."
+    source ~/.bashrc
+
+    # Jalankan vlayerup untuk memasang vlayer
+    if command -v vlayerup &> /dev/null; then
+        echo "✅ vlayerup ditemukan. Menjalankan instalasi VLayer..."
+        vlayerup
+    else
+        echo "❌ Error: vlayerup tidak ditemukan setelah instalasi. Periksa kembali instalasi VLayer CLI."
+        exit 1
+    fi
+
+    echo "✅ VLayer CLI berhasil diinstal."
+fi
+
+# 2. Inisialisasi Proyek VLayer
+echo "📂 Menginisialisasi proyek VLayer..."
+mkdir -p game-click-onchain && cd game-click-onchain
+if [ ! -f "foundry.toml" ]; then
+    echo "🔧 File foundry.toml tidak ditemukan. Menjalankan forge init..."
     forge init || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
-    echo "✅ Proyek Foundry berhasil diinisialisasi."
-else
-    echo "⚠️  Direktori '$PROJECT_NAME' sudah ada. Menggunakan direktori yang ada."
-    cd $PROJECT_NAME
 fi
+vlayer init --existing || { echo "❌ Error: Gagal menginisialisasi proyek VLayer."; exit 1; }
+echo "✅ Inisialisasi proyek VLayer selesai."
 
-# 3. Membuat Struktur Direktori
-echo "📁 Membuat struktur direktori yang sesuai..."
-mkdir -p src/vlayer          # Untuk kontrak VLayer
-mkdir -p lib/vlayer-0.1.0/src # Direktori untuk dependensi manual
-echo "✅ Struktur direktori berhasil dibuat."
+# 3. Build Kontrak Pintar
+echo "🔨 Membuild kontrak pintar..."
+forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
+echo "✅ Build kontrak selesai."
 
-# 4. Mengunduh Dependensi Secara Manual
-echo "🔗 Mengunduh dependensi manual..."
-wget -q https://raw.githubusercontent.com/vlayer/vlayer-0.1.0/main/src/Proof.sol -P lib/vlayer-0.1.0/src/
-wget -q https://raw.githubusercontent.com/vlayer/vlayer-0.1.0/main/src/Prover.sol -P lib/vlayer-0.1.0/src/
-wget -q https://raw.githubusercontent.com/vlayer/vlayer-0.1.0/main/src/Verifier.sol -P lib/vlayer-0.1.0/src/
-echo "✅ Dependensi berhasil diunduh secara manual."
+# 4. Konfigurasi Testnet
+echo "⚙️ Mengkonfigurasi Testnet..."
 
-# 5. Menambahkan Remappings
-echo "🔗 Menambahkan remappings..."
-echo "vlayer-0.1.0/=lib/vlayer-0.1.0/src/" > remappings.txt
-echo "✅ Remappings berhasil ditambahkan."
+# Meminta pengguna untuk memasukkan Private Key dan API Token hingga valid
+while [[ -z "$API_TOKEN" ]]; do
+    read -p "Masukkan API Token JWT Anda: " API_TOKEN
+    if [[ -z "$API_TOKEN" ]]; then
+        echo "❌ API Token tidak boleh kosong. Silakan coba lagi."
+    fi
+done
 
-# 6. Menambahkan File Kontrak Pintar
-echo "📜 Menambahkan file kontrak pintar..."
-cat <<'EOT' > src/vlayer/ClickGameProver.sol
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+while [[ -z "$PRIVATE_KEY" ]]; do
+    read -p "Masukkan Private Key Anda (format 0x...): " PRIVATE_KEY
+    if [[ -z "$PRIVATE_KEY" ]]; then
+        echo "❌ Private Key tidak boleh kosong. Silakan coba lagi."
+    fi
+done
 
-import {Proof} from "vlayer-0.1.0/Proof.sol";
-import {Prover} from "vlayer-0.1.0/Prover.sol";
-
-contract ClickGameProver is Prover {
-    mapping(address => uint256) public clicks;
-
-    event ClickVerified(address indexed user, uint256 totalClicks);
-
-    function main(address user, uint256 clickCount) external view returns (Proof memory, uint256) {
-        uint256 recordedClicks = clicks[user];
-        require(clickCount >= recordedClicks, "Invalid click count");
-        return (proof(), clickCount);
-    }
-
-    function recordClick(address user, uint256 clickCount) external {
-        require(clickCount > clicks[user], "New click count must be greater");
-        clicks[user] = clickCount;
-        emit ClickVerified(user, clickCount);
-    }
-}
-EOT
-
-cat <<'EOT' > src/vlayer/ClickGameVerifier.sol
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-import {Verifier} from "vlayer-0.1.0/Verifier.sol";
-
-contract ClickGameVerifier is Verifier {
-    address public prover;
-
-    constructor(address _prover) {
-        prover = _prover;
-    }
-
-    function verify(Proof calldata proof, address user, uint256 clickCount)
-        public
-        onlyVerified(prover, ClickGameProver.main.selector)
-    {
-        require(clickCount > 0, "Click count must be greater than zero");
-    }
-}
-EOT
-echo "✅ File kontrak pintar berhasil ditambahkan."
-
-# 7. Membuat File Konfigurasi Deployment
-echo "⚙️ Membuat file konfigurasi deployment..."
+mkdir -p vlayer
 cat <<EOT > vlayer/.env.testnet.local
-VLAYER_API_TOKEN=<MASUKKAN_JWT_TOKEN_ANDA>
-EXAMPLES_TEST_PRIVATE_KEY=<MASUKKAN_PRIVATE_KEY_ANDA>
+VLAYER_API_TOKEN=$API_TOKEN
+EXAMPLES_TEST_PRIVATE_KEY=$PRIVATE_KEY
 CHAIN_NAME=optimismSepolia
 JSON_RPC_URL=https://sepolia.optimism.io
 EOT
-echo "✅ File konfigurasi deployment berhasil dibuat. Pastikan untuk mengganti <MASUKKAN_JWT_TOKEN_ANDA> dan <MASUKKAN_PRIVATE_KEY_ANDA> dengan nilai yang valid."
+echo "✅ Konfigurasi testnet selesai dengan API Token dan Private Key yang dimasukkan."
 
-# 8. Build Kontrak Pintar
-echo "🔨 Membuild kontrak pintar..."
-forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
-
-# 9. Install Dependensi Typescript
+# 5. Install Dependensi Typescript
 echo "📦 Menginstal dependensi Typescript di folder VLayer..."
 cd vlayer
 bun install || { echo "❌ Error: Gagal menginstal dependensi Typescript."; exit 1; }
 cd ..
 
-# 10. Deploy Kontrak ke Testnet
+# 6. Deploy Kontrak ke Testnet
 echo "🚀 Deploying kontrak ke testnet..."
 cd vlayer
-bun run deploy:testnet || { echo "❌ Error: Gagal mendepoloy kontrak."; exit 1; }
+if ! bun run deploy:testnet; then
+    echo "❌ Error: Gagal mendepoloy kontrak ke testnet."
+    exit 1
+fi
 cd ..
 echo "✅ Kontrak berhasil dideploy ke testnet."
 
-# 11. Menjalankan Frontend
+# 7. Menyiapkan Frontend
+echo "🌍 Menyiapkan aplikasi frontend..."
+mkdir -p vlayer/frontend
+cat <<EOF > vlayer/frontend/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Klik On-Chain</title>
+</head>
+<body>
+    <h1>Game Klik On-Chain</h1>
+    <button id="connectWallet">Connect Wallet</button>
+    <div id="walletInfo"></div>
+    <script type="module" src="./script.js"></script>
+</body>
+</html>
+EOF
+
+cat <<EOF > vlayer/frontend/script.js
+import { ethers } from "ethers";
+
+async function connectWallet() {
+    if (typeof window.ethereum !== "undefined") {
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            await provider.send("eth_requestAccounts", []); // Meminta akses ke wallet
+            const signer = provider.getSigner();
+            console.log("Wallet connected:", await signer.getAddress());
+            document.getElementById("walletInfo").innerText = "Wallet: " + await signer.getAddress();
+        } catch (error) {
+            console.error("Error connecting to wallet:", error);
+        }
+    } else {
+        alert("MetaMask is not installed. Please install it to use this app.");
+    }
+}
+
+document.getElementById("connectWallet").addEventListener("click", connectWallet);
+EOF
+echo "✅ Aplikasi frontend berhasil disiapkan."
+
+# 8. Menjalankan Aplikasi Frontend
 echo "🌍 Menjalankan aplikasi frontend..."
 cd vlayer
 bun run web:dev || { echo "❌ Error: Gagal menjalankan aplikasi frontend."; exit 1; }
