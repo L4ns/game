@@ -126,7 +126,13 @@ contract ClickGameVerifier is Verifier {
 EOT
 echo "✅ File kontrak pintar berhasil ditambahkan."
 
-# 5. Membuat File Konfigurasi Deployment
+# 5. Menambahkan Remappings dan Menginstal Dependensi
+echo "🔗 Menambahkan remappings dan menginstal dependensi Solidity..."
+echo "vlayer-0.1.0/=lib/vlayer-0.1.0/src/" > remappings.txt
+forge install vlayer/vlayer-0.1.0 || { echo "❌ Error: Gagal mengunduh dependensi vlayer-0.1.0."; exit 1; }
+echo "✅ Remappings ditambahkan dan dependensi berhasil diunduh."
+
+# 6. Membuat File Konfigurasi Deployment
 echo "⚙️ Membuat file konfigurasi deployment..."
 cat <<EOT > vlayer/.env.testnet.local
 VLAYER_API_TOKEN=<MASUKKAN_JWT_TOKEN_ANDA>
@@ -136,24 +142,24 @@ JSON_RPC_URL=https://sepolia.optimism.io
 EOT
 echo "✅ File konfigurasi deployment berhasil dibuat. Pastikan untuk mengganti <MASUKKAN_JWT_TOKEN_ANDA> dan <MASUKKAN_PRIVATE_KEY_ANDA> dengan nilai yang valid."
 
-# 6. Build Kontrak Pintar
+# 7. Build Kontrak Pintar
 echo "🔨 Membuild kontrak pintar..."
 forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
 
-# 7. Install Dependensi Typescript
+# 8. Install Dependensi Typescript
 echo "📦 Menginstal dependensi Typescript di folder VLayer..."
 cd vlayer
 bun install || { echo "❌ Error: Gagal menginstal dependensi Typescript."; exit 1; }
 cd ..
 
-# 8. Deploy Kontrak ke Testnet
+# 9. Deploy Kontrak ke Testnet
 echo "🚀 Deploying kontrak ke testnet..."
 cd vlayer
 bun run deploy:testnet || { echo "❌ Error: Gagal mendepoloy kontrak."; exit 1; }
 cd ..
 echo "✅ Kontrak berhasil dideploy ke testnet."
 
-# 9. Menjalankan Frontend
+# 10. Menjalankan Frontend
 echo "🌍 Menjalankan aplikasi frontend..."
 cd vlayer
 bun run web:dev || { echo "❌ Error: Gagal menjalankan aplikasi frontend."; exit 1; }
