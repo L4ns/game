@@ -73,7 +73,7 @@ echo "⚙️ Mengkonfigurasi Testnet..."
 
 # Meminta pengguna untuk memasukkan Private Key dan API Token hingga valid
 while [[ -z "$API_TOKEN" ]]; do
-    read -p "Masukkan API Token JWT Anda: " API_TOKEN
+    read -p "Masukkan API Token JWT Anda (contoh: eyJhbGci...): " API_TOKEN
     if [[ -z "$API_TOKEN" ]]; then
         echo "❌ API Token tidak boleh kosong. Silakan coba lagi."
     fi
