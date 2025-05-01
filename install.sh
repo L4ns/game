@@ -68,32 +68,48 @@ echo "🔨 Membuild kontrak pintar..."
 forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
 echo "✅ Build kontrak selesai."
 
-# 4. Konfigurasi Testnet
+# 4. Konfigurasi Testnet sesuai dokumentasi VLayer
 echo "⚙️ Mengkonfigurasi Testnet..."
 
-# Meminta pengguna untuk memasukkan Private Key dan API Token hingga valid
-while [[ -z "$API_TOKEN" ]]; do
-    read -p "Masukkan API Token JWT Anda (contoh: eyJhbGci...): " API_TOKEN
-    if [[ -z "$API_TOKEN" ]]; then
+# Meminta input JWT Token dan Private Key serta opsi penggantian jaringan
+while [[ -z "$VLAYER_API_TOKEN" ]]; do
+    read -p "Masukkan JWT API Token VLayer Anda (hanya valid 1 tahun): " VLAYER_API_TOKEN
+    if [[ -z "$VLAYER_API_TOKEN" ]]; then
         echo "❌ API Token tidak boleh kosong. Silakan coba lagi."
     fi
 done
 
-while [[ -z "$PRIVATE_KEY" ]]; do
-    read -p "Masukkan Private Key Anda (format 0x...): " PRIVATE_KEY
-    if [[ -z "$PRIVATE_KEY" ]]; then
+while [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; do
+    read -p "Masukkan Private Key (format 0x...): " EXAMPLES_TEST_PRIVATE_KEY
+    if [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
         echo "❌ Private Key tidak boleh kosong. Silakan coba lagi."
     fi
 done
 
+DEFAULT_CHAIN_NAME="optimismSepolia"
+DEFAULT_RPC_URL="https://sepolia.optimism.io"
+
+echo "Pengaturan jaringan default:"
+echo "  CHAIN_NAME    : $DEFAULT_CHAIN_NAME"
+echo "  JSON_RPC_URL  : $DEFAULT_RPC_URL"
+read -p "Gunakan jaringan default di atas? [Y/n]: " JAWAB
+
+if [[ "$JAWAB" =~ ^[Nn]$ ]]; then
+    read -p "Masukkan CHAIN_NAME (misal: baseSepolia): " CHAIN_NAME
+    read -p "Masukkan JSON_RPC_URL (misal: https://sepolia.base.org): " JSON_RPC_URL
+else
+    CHAIN_NAME="$DEFAULT_CHAIN_NAME"
+    JSON_RPC_URL="$DEFAULT_RPC_URL"
+fi
+
 mkdir -p vlayer
 cat <<EOT > vlayer/.env.testnet.local
-VLAYER_API_TOKEN=$API_TOKEN
-EXAMPLES_TEST_PRIVATE_KEY=$PRIVATE_KEY
-CHAIN_NAME=optimismSepolia
-JSON_RPC_URL=https://sepolia.optimism.io
+VLAYER_API_TOKEN=$VLAYER_API_TOKEN
+EXAMPLES_TEST_PRIVATE_KEY=$EXAMPLES_TEST_PRIVATE_KEY
+CHAIN_NAME=$CHAIN_NAME
+JSON_RPC_URL=$JSON_RPC_URL
 EOT
-echo "✅ Konfigurasi testnet selesai dengan API Token dan Private Key yang dimasukkan."
+echo "✅ Konfigurasi testnet selesai dengan API Token, Private Key, dan jaringan yang dipilih."
 
 # 5. Install Dependensi Typescript
 echo "📦 Menginstal dependensi Typescript di folder VLayer..."
@@ -101,15 +117,15 @@ cd vlayer
 bun install || { echo "❌ Error: Gagal menginstal dependensi Typescript."; exit 1; }
 cd ..
 
-# 6. Deploy Kontrak ke Testnet
-echo "🚀 Deploying kontrak ke testnet..."
+# 6. Jalankan prove testnet sesuai dokumentasi
+echo "🚀 Menjalankan contoh prove testnet (bun run prove:testnet)..."
 cd vlayer
-if ! bun run deploy:testnet; then
-    echo "❌ Error: Gagal mendepoloy kontrak ke testnet."
+if ! bun run prove:testnet; then
+    echo "❌ Error: Gagal menjalankan prove:testnet."
     exit 1
 fi
 cd ..
-echo "✅ Kontrak berhasil dideploy ke testnet."
+echo "✅ Berhasil menjalankan prove:testnet."
 
 # 7. Menyiapkan Frontend
 echo "🌍 Menyiapkan aplikasi frontend..."
