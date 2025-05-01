@@ -3,7 +3,7 @@
 # Menghentikan skrip jika terjadi error
 set -e
 
-echo "🚀 Memulai instalasi, deploy, dan menjalankan Game Klik On-Chain dengan VLayer..."
+echo "🚀 Memulai instalasi, konfigurasi, dan menjalankan proyek Foundry dengan VLayer..."
 
 # 1. Cek dan Instal Prasyarat
 echo "🔍 Memeriksa prasyarat..."
@@ -21,16 +21,18 @@ fi
 if ! command -v bun &> /dev/null; then
     echo "❌ Bun tidak ditemukan. Menginstal Bun..."
     curl -fsSL https://bun.sh/install | bash
-    source /home/codespace/.bashrc
+    source ~/.bashrc
     echo "✅ Bun berhasil diinstal."
 fi
 
 if ! command -v forge &> /dev/null; then
     echo "❌ Forge tidak ditemukan. Menginstal Forge..."
     curl -L https://foundry.paradigm.xyz | bash
-    source /home/codespace/.bashrc
+    source ~/.bashrc
     foundryup
     echo "✅ Forge berhasil diinstal."
+else
+    echo "✅ Forge sudah terinstal."
 fi
 
 if ! command -v vlayer &> /dev/null; then
@@ -39,7 +41,7 @@ if ! command -v vlayer &> /dev/null; then
 
     # Muat ulang shell agar PATH diperbarui
     echo "🔄 Memuat ulang konfigurasi shell..."
-    source /home/codespace/.bashrc
+    source ~/.bashrc
 
     # Jalankan vlayerup untuk memasang vlayer
     if command -v vlayerup &> /dev/null; then
@@ -51,17 +53,30 @@ if ! command -v vlayer &> /dev/null; then
     fi
 
     echo "✅ VLayer CLI berhasil diinstal."
+else
+    echo "✅ VLayer CLI sudah terinstal."
 fi
 
-# 2. Inisialisasi Proyek VLayer
-echo "📂 Menginisialisasi proyek VLayer..."
-mkdir -p game-click-onchain && cd game-click-onchain
-vlayer init --existing || { echo "❌ Error: Gagal menginisialisasi proyek VLayer."; exit 1; }
-echo "✅ Inisialisasi proyek VLayer selesai."
+# 2. Inisialisasi Proyek Foundry
+echo "📂 Menginisialisasi proyek Foundry..."
+PROJECT_NAME="game-click-onchain"
+if [ ! -d "$PROJECT_NAME" ]; then
+    mkdir -p $PROJECT_NAME && cd $PROJECT_NAME
+    forge init || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
+    echo "✅ Proyek Foundry berhasil diinisialisasi."
+else
+    echo "⚠️  Direktori '$PROJECT_NAME' sudah ada. Menggunakan direktori yang ada."
+    cd $PROJECT_NAME
+fi
 
-# 3. Tambahkan Kontrak Pintar
+# 3. Membuat Struktur Direktori
+echo "📁 Membuat struktur direktori yang sesuai..."
+mkdir -p src/vlayer          # Untuk kontrak VLayer
+mkdir -p vlayer              # Untuk konfigurasi dan skrip deployment
+echo "✅ Struktur direktori berhasil dibuat."
+
+# 4. Menambahkan File Kontrak Pintar
 echo "📜 Menambahkan file kontrak pintar..."
-mkdir -p src/vlayer
 cat <<'EOT' > src/vlayer/ClickGameProver.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
@@ -109,134 +124,36 @@ contract ClickGameVerifier is Verifier {
     }
 }
 EOT
+echo "✅ File kontrak pintar berhasil ditambahkan."
 
-# 4. Build Kontrak Pintar
-echo "🔨 Membuild kontrak pintar..."
-forge build
-
-# 5. Konfigurasi Testnet
-echo "⚙️ Mengkonfigurasi Testnet..."
-mkdir -p vlayer
+# 5. Membuat File Konfigurasi Deployment
+echo "⚙️ Membuat file konfigurasi deployment..."
 cat <<EOT > vlayer/.env.testnet.local
 VLAYER_API_TOKEN=<MASUKKAN_JWT_TOKEN_ANDA>
 EXAMPLES_TEST_PRIVATE_KEY=<MASUKKAN_PRIVATE_KEY_ANDA>
 CHAIN_NAME=optimismSepolia
 JSON_RPC_URL=https://sepolia.optimism.io
 EOT
-echo "✅ Konfigurasi testnet selesai. Pastikan untuk mengganti <MASUKKAN_JWT_TOKEN_ANDA> dan <MASUKKAN_PRIVATE_KEY_ANDA> dengan token yang valid."
+echo "✅ File konfigurasi deployment berhasil dibuat. Pastikan untuk mengganti <MASUKKAN_JWT_TOKEN_ANDA> dan <MASUKKAN_PRIVATE_KEY_ANDA> dengan nilai yang valid."
 
-# 6. Install Dependensi Typescript
+# 6. Build Kontrak Pintar
+echo "🔨 Membuild kontrak pintar..."
+forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
+
+# 7. Install Dependensi Typescript
 echo "📦 Menginstal dependensi Typescript di folder VLayer..."
 cd vlayer
-bun install
+bun install || { echo "❌ Error: Gagal menginstal dependensi Typescript."; exit 1; }
 cd ..
 
-# 7. Deploy Kontrak ke Testnet
+# 8. Deploy Kontrak ke Testnet
 echo "🚀 Deploying kontrak ke testnet..."
 cd vlayer
-bun run deploy:testnet
+bun run deploy:testnet || { echo "❌ Error: Gagal mendepoloy kontrak."; exit 1; }
 cd ..
 echo "✅ Kontrak berhasil dideploy ke testnet."
 
-# 8. Tambahkan File Frontend
-echo "🌐 Menambahkan file frontend..."
-mkdir -p frontend
-cat <<'EOT' > frontend/index.html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>On-Chain Click Game</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.1/dist/ethers.umd.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 50px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 1.2rem;
-      margin: 10px;
-      cursor: pointer;
-    }
-    #counter {
-      font-size: 2rem;
-      margin: 20px;
-    }
-  </style>
-</head>
-<body>
-  <h1>On-Chain Click Game</h1>
-  <p>Connect your wallet and start clicking!</p>
-  <button id="connectWallet">Connect Wallet</button>
-  <div id="walletAddress"></div>
-  <button id="clickButton" disabled>Click Me</button>
-  <div id="counter">Total Clicks: 0</div>
-
-  <script src="./script.js"></script>
-</body>
-</html>
-EOT
-
-cat <<'EOT' > frontend/script.js
-import { createVlayerClient } from "@vlayer/sdk";
-import { createWalletClient } from "viem";
-
-const vlayer = createVlayerClient();
-
-const client = createWalletClient({
-  // Tambahkan konfigurasi klien wallet Anda
-});
-
-const proverContractAddress = "ALAMAT_PROVER_CONTRACT"; // Ganti dengan alamat Prover
-const verifierContractAddress = "ALAMAT_VERIFIER_CONTRACT"; // Ganti dengan alamat Verifier
-
-let clickCount = 0;
-
-document.getElementById("clickButton").addEventListener("click", async () => {
-  try {
-    clickCount++;
-
-    const provingHash = await vlayer.prove({
-      address: proverContractAddress,
-      proverAbi: [], // Tambahkan ABI dari Prover
-      functionName: "main",
-      args: [await client.getAddress(), clickCount],
-      chainId: 1,
-    });
-
-    const provingResult = await vlayer.waitForProvingResult({ hash: provingHash });
-
-    const txHash = await client.writeContract({
-      address: verifierContractAddress,
-      abi: [], // Tambahkan ABI dari Verifier
-      functionName: "verify",
-      args: [provingResult, await client.getAddress(), clickCount],
-      chain: { id: 1 },
-      account: await client.getAddress(),
-    });
-
-    alert(`Click ${clickCount} verified and recorded on-chain!`);
-  } catch (error) {
-    console.error("Error during proving or verification:", error);
-    alert("Error during proving or verification.");
-  }
-});
-
-document.getElementById("connectWallet").addEventListener("click", async () => {
-  try {
-    const address = await client.getAddress();
-    alert(`Wallet connected: ${address}`);
-  } catch (error) {
-    console.error("Failed to connect wallet:", error);
-    alert("Failed to connect wallet.");
-  }
-});
-EOT
-
-# 9. Jalankan Frontend
+# 9. Menjalankan Frontend
 echo "🌍 Menjalankan aplikasi frontend..."
 cd vlayer
-bun run web:dev
+bun run web:dev || { echo "❌ Error: Gagal menjalankan aplikasi frontend."; exit 1; }
