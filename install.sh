@@ -3,7 +3,7 @@
 # Menghentikan skrip jika terjadi error
 set -e
 
-echo "🚀 Memulai instalasi dan deploy Game Klik On-Chain..."
+echo "🚀 Memulai instalasi dan deploy Game Klik On-Chain dengan VLayer..."
 
 # 1. Cek dan Instal Prasyarat
 echo "🔍 Memeriksa prasyarat..."
@@ -25,45 +25,22 @@ if ! command -v bun &> /dev/null; then
     echo "✅ Bun berhasil diinstal."
 fi
 
-# 2. Instal Foundry
-echo "🔧 Menginstal Foundry..."
-curl -L https://foundry.paradigm.xyz | bash
-source ~/.bashrc # Memuat ulang konfigurasi shell
-if command -v foundryup &> /dev/null; then
-    foundryup # Instalasi Foundry
-    echo "✅ Foundry berhasil diinstal."
-else
-    echo "❌ Foundryup tidak ditemukan setelah instalasi. Memuat ulang shell dan mencoba lagi..."
-    source ~/.bashrc # Memuat ulang shell lagi jika gagal
-    if command -v foundryup &> /dev/null; then
-        foundryup
-        echo "✅ Foundry berhasil diinstal setelah memuat ulang shell."
-    else
-        echo "❌ Foundry masih tidak ditemukan. Pastikan PATH sudah diperbarui secara manual."
-        exit 1
-    fi
+if ! command -v vlayer &> /dev/null; then
+    echo "❌ VLayer CLI tidak ditemukan. Menginstal VLayer CLI..."
+    curl -SL https://install.vlayer.xyz | bash
+    source ~/.bashrc
+    echo "✅ VLayer CLI berhasil diinstal."
 fi
 
-# 3. Instal VLayer
-echo "🔧 Menginstal VLayer..."
-curl -SL https://install.vlayer.xyz | bash
-source ~/.bashrc # Memuat ulang konfigurasi shell
-if command -v vlayerup &> /dev/null; then
-    vlayerup
-    echo "✅ VLayer berhasil diinstal."
-else
-    echo "❌ VLayerup tidak ditemukan setelah instalasi. Pastikan PATH sudah diperbarui."
-    exit 1
-fi
-
-# 4. Buat Direktori Proyek
-echo "📂 Membuat direktori proyek..."
+# 2. Inisialisasi Proyek VLayer
+echo "📂 Menginisialisasi proyek VLayer..."
 mkdir -p game-click-onchain && cd game-click-onchain
+vlayer init --existing
+echo "✅ Inisialisasi proyek VLayer selesai."
 
-# 5. Tambahkan Kontrak Pintar
+# 3. Tambahkan Kontrak Pintar
 echo "📜 Menambahkan file kontrak pintar..."
-mkdir -p contracts
-cat <<EOT > contracts/ClickGameProver.sol
+cat <<'EOT' > src/vlayer/ClickGameProver.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -89,7 +66,7 @@ contract ClickGameProver is Prover {
 }
 EOT
 
-cat <<EOT > contracts/ClickGameVerifier.sol
+cat <<'EOT' > src/vlayer/ClickGameVerifier.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -111,10 +88,37 @@ contract ClickGameVerifier is Verifier {
 }
 EOT
 
-# 6. Tambahkan File Frontend
+# 4. Build Kontrak Pintar
+echo "🔨 Membuild kontrak pintar..."
+forge build
+
+# 5. Konfigurasi Testnet
+echo "⚙️ Mengkonfigurasi Testnet..."
+cat <<EOT > vlayer/.env.testnet.local
+VLAYER_API_TOKEN=<MASUKKAN_JWT_TOKEN_ANDA>
+EXAMPLES_TEST_PRIVATE_KEY=<MASUKKAN_PRIVATE_KEY_ANDA>
+CHAIN_NAME=optimismSepolia
+JSON_RPC_URL=https://sepolia.optimism.io
+EOT
+echo "✅ Konfigurasi testnet selesai. Pastikan untuk mengganti <MASUKKAN_JWT_TOKEN_ANDA> dan <MASUKKAN_PRIVATE_KEY_ANDA> dengan token yang valid."
+
+# 6. Install Dependensi Typescript
+echo "📦 Menginstal dependensi Typescript di folder VLayer..."
+cd vlayer
+bun install
+cd ..
+
+# 7. Deploy Kontrak ke Testnet
+echo "🚀 Deploying kontrak ke testnet..."
+cd vlayer
+bun run deploy:testnet
+cd ..
+echo "✅ Kontrak berhasil dideploy ke testnet."
+
+# 8. Tambahkan File Frontend
 echo "🌐 Menambahkan file frontend..."
 mkdir -p frontend
-cat <<EOT > frontend/index.html
+cat <<'EOT' > frontend/index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -153,7 +157,7 @@ cat <<EOT > frontend/index.html
 </html>
 EOT
 
-cat <<EOT > frontend/script.js
+cat <<'EOT' > frontend/script.js
 import { createVlayerClient } from "@vlayer/sdk";
 import { createWalletClient } from "viem";
 
@@ -209,24 +213,7 @@ document.getElementById("connectWallet").addEventListener("click", async () => {
 });
 EOT
 
-# 7. Konfigurasi Testnet
-echo "⚙️ Konfigurasi Testnet"
-read -p "Masukkan JWT Token Anda: " JWT_TOKEN
-read -p "Masukkan Private Key Anda (contoh: 0x...): " PRIVATE_KEY
-
-mkdir -p vlayer
-cat <<EOT > vlayer/.env.testnet.local
-VLAYER_API_TOKEN=$JWT_TOKEN
-EXAMPLES_TEST_PRIVATE_KEY=$PRIVATE_KEY
-CHAIN_NAME=optimismSepolia
-JSON_RPC_URL=https://sepolia.optimism.io
-EOT
-
-# 8. Deploy Aplikasi Frontend
-echo "✅ Instalasi selesai! Menjalankan aplikasi..."
-cd frontend
-if command -v npx &> /dev/null; then
-    npx live-server
-else
-    echo "❌ Live server tidak ditemukan. Pastikan Anda menginstalnya dengan 'npm install -g live-server'."
-fi
+# 9. Jalankan Frontend
+echo "🌍 Menjalankan aplikasi frontend..."
+cd vlayer
+bun run web:dev
