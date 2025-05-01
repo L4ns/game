@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# Menghentikan skrip jika terjadi error
+# Menghentikan skrip jika ada error
 set -e
-
-# Konfigurasi default untuk jaringan
-DEFAULT_RPC_URL="https://sepolia.optimism.io"
-DEFAULT_CHAIN_ID=11155111  # Chain ID untuk Sepolia Optimism
 
 # Fungsi untuk meminta input pengguna dengan validasi
 function prompt_input() {
@@ -26,9 +22,9 @@ echo "⚙️  Konfigurasi Deployment"
 API_TOKEN=$(prompt_input "API Token" "Masukkan API Token JWT Anda")
 PRIVATE_KEY=$(prompt_input "Private Key" "Masukkan Private Key Anda (format 0x...)")
 
-# Gunakan RPC URL dan Chain ID default
-RPC_URL=$DEFAULT_RPC_URL
-CHAIN_ID=$DEFAULT_CHAIN_ID
+# Menggunakan nilai default untuk RPC URL dan Chain ID
+RPC_URL="https://sepolia.optimism.io"
+CHAIN_ID=11155111
 
 # Menampilkan konfigurasi yang digunakan
 echo "✅ Konfigurasi berhasil diterima:"
@@ -37,11 +33,13 @@ echo "Private Key: $PRIVATE_KEY"
 echo "RPC URL: $RPC_URL (Default)"
 echo "Chain ID: $CHAIN_ID (Default)"
 
-# 1. Inisialisasi Proyek Foundry (jika belum ada)
+# 1. Inisialisasi Proyek Foundry
 if [ ! -f "foundry.toml" ]; then
     echo "📂 Menginisialisasi proyek Foundry..."
-    forge init || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
+    forge init --force || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
     echo "✅ Proyek Foundry berhasil diinisialisasi."
+else
+    echo "🔄 Proyek Foundry sudah ada. Melewatkan langkah inisialisasi."
 fi
 
 # 2. Kompilasi Kontrak
@@ -58,7 +56,7 @@ CHAIN_ID=$CHAIN_ID
 EOT
 echo "✅ File .env berhasil dibuat atau diperbarui."
 
-# 4. Tambahkan Deployment Script (Jika Belum Ada)
+# 4. Tambahkan Skrip Deployment (Jika Belum Ada)
 if [ ! -f "script/Deploy.s.sol" ]; then
     echo "📜 Menambahkan skrip deployment ke folder script/..."
     mkdir -p script
@@ -80,7 +78,7 @@ EOF
     echo "✅ Skrip deployment berhasil dibuat."
 fi
 
-# 5. Lakukan Deployment
+# 5. Deploy ke Testnet
 echo "🚀 Deploying kontrak ke jaringan..."
 forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --chain-id $CHAIN_ID --broadcast || { echo "❌ Error: Gagal mendepoloy kontrak."; exit 1; }
 echo "✅ Kontrak berhasil dideploy ke jaringan."
