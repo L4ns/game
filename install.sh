@@ -3,7 +3,7 @@
 # Menghentikan skrip jika terjadi error
 set -e
 
-echo "🚀 Memulai instalasi dan deploy Game Klik On-Chain dengan VLayer..."
+echo "🚀 Memulai instalasi, deploy, dan menjalankan Game Klik On-Chain dengan VLayer..."
 
 # 1. Cek dan Instal Prasyarat
 echo "🔍 Memeriksa prasyarat..."
@@ -21,25 +21,39 @@ fi
 if ! command -v bun &> /dev/null; then
     echo "❌ Bun tidak ditemukan. Menginstal Bun..."
     curl -fsSL https://bun.sh/install | bash
-    source ~/.bashrc
+    source /home/codespace/.bashrc
     echo "✅ Bun berhasil diinstal."
 fi
 
 if ! command -v vlayer &> /dev/null; then
     echo "❌ VLayer CLI tidak ditemukan. Menginstal VLayer CLI..."
     curl -SL https://install.vlayer.xyz | bash
-    source ~/.bashrc
+
+    # Muat ulang shell agar PATH diperbarui
+    echo "🔄 Memuat ulang konfigurasi shell..."
+    source /home/codespace/.bashrc
+
+    # Jalankan vlayerup untuk memasang vlayer
+    if command -v vlayerup &> /dev/null; then
+        echo "✅ vlayerup ditemukan. Menjalankan instalasi VLayer..."
+        vlayerup
+    else
+        echo "❌ Error: vlayerup tidak ditemukan setelah instalasi. Periksa kembali instalasi VLayer CLI."
+        exit 1
+    fi
+
     echo "✅ VLayer CLI berhasil diinstal."
 fi
 
 # 2. Inisialisasi Proyek VLayer
 echo "📂 Menginisialisasi proyek VLayer..."
 mkdir -p game-click-onchain && cd game-click-onchain
-vlayer init --existing
+vlayer init --existing || { echo "❌ Error: Gagal menginisialisasi proyek VLayer."; exit 1; }
 echo "✅ Inisialisasi proyek VLayer selesai."
 
 # 3. Tambahkan Kontrak Pintar
 echo "📜 Menambahkan file kontrak pintar..."
+mkdir -p src/vlayer
 cat <<'EOT' > src/vlayer/ClickGameProver.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
@@ -94,6 +108,7 @@ forge build
 
 # 5. Konfigurasi Testnet
 echo "⚙️ Mengkonfigurasi Testnet..."
+mkdir -p vlayer
 cat <<EOT > vlayer/.env.testnet.local
 VLAYER_API_TOKEN=<MASUKKAN_JWT_TOKEN_ANDA>
 EXAMPLES_TEST_PRIVATE_KEY=<MASUKKAN_PRIVATE_KEY_ANDA>
