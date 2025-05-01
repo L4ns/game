@@ -22,7 +22,9 @@ else
     PRIVATE_KEY=$2
 fi
 
-echo "🚀 Memulai instalasi, inisiasi, deploy, dan menjalankan Game Klik On-Chain dengan VLayer..."
+echo "✅ API Token dan Private Key telah diterima."
+echo "API Token: $API_TOKEN"
+echo "Private Key: $PRIVATE_KEY"
 
 # 1. Cek dan Instal Prasyarat
 echo "🔍 Memeriksa prasyarat..."
