@@ -34,7 +34,7 @@ if command -v foundryup &> /dev/null; then
     echo "✅ Foundry berhasil diinstal."
 else
     echo "❌ Foundryup tidak ditemukan setelah instalasi. Memuat ulang shell dan mencoba lagi..."
-    source ~/.bashrc # Memuat ulang shell lagi jika gagal
+    source ~/.bashrc
     if command -v foundryup &> /dev/null; then
         foundryup
         echo "✅ Foundry berhasil diinstal setelah memuat ulang shell."
@@ -47,7 +47,7 @@ fi
 # 3. Instal VLayer
 echo "🔧 Menginstal VLayer..."
 curl -SL https://install.vlayer.xyz | bash
-source ~/.bashrc # Memuat ulang konfigurasi shell
+source ~/.bashrc
 if command -v vlayerup &> /dev/null; then
     vlayerup
     echo "✅ VLayer berhasil diinstal."
@@ -63,7 +63,7 @@ mkdir -p game-click-onchain && cd game-click-onchain
 # 5. Tambahkan Kontrak Pintar
 echo "📜 Menambahkan file kontrak pintar..."
 mkdir -p contracts
-cat <<EOT > contracts/ClickGameProver.sol
+cat <<'EOT' > contracts/ClickGameProver.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -89,7 +89,7 @@ contract ClickGameProver is Prover {
 }
 EOT
 
-cat <<EOT > contracts/ClickGameVerifier.sol
+cat <<'EOT' > contracts/ClickGameVerifier.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -111,7 +111,27 @@ contract ClickGameVerifier is Verifier {
 }
 EOT
 
-# 6. Tambahkan File Frontend
+# 6. Kompilasi dan Deploy Kontrak Menggunakan Foundry dan VLayer
+echo "⚙️ Kompilasi dan deploy kontrak pintar..."
+forge build
+
+echo "🚀 Deploying ClickGameProver..."
+CONTRACT_PROVER_ADDRESS=$(forge create contracts/ClickGameProver.sol:ClickGameProver --rpc-url $JSON_RPC_URL --private-key $EXAMPLES_TEST_PRIVATE_KEY | grep "Deployed to" | awk '{print $3}')
+if [ -z "$CONTRACT_PROVER_ADDRESS" ]; then
+    echo "❌ Gagal mendeply ClickGameProver."
+    exit 1
+fi
+echo "✅ ClickGameProver berhasil dideploy di alamat: $CONTRACT_PROVER_ADDRESS"
+
+echo "🚀 Deploying ClickGameVerifier..."
+CONTRACT_VERIFIER_ADDRESS=$(forge create contracts/ClickGameVerifier.sol:ClickGameVerifier --rpc-url $JSON_RPC_URL --private-key $EXAMPLES_TEST_PRIVATE_KEY --constructor-args "$CONTRACT_PROVER_ADDRESS" | grep "Deployed to" | awk '{print $3}')
+if [ -z "$CONTRACT_VERIFIER_ADDRESS" ]; then
+    echo "❌ Gagal mendeply ClickGameVerifier."
+    exit 1
+fi
+echo "✅ ClickGameVerifier berhasil dideploy di alamat: $CONTRACT_VERIFIER_ADDRESS"
+
+# 7. Tambahkan File Frontend
 echo "🌐 Menambahkan file frontend..."
 mkdir -p frontend
 cat <<EOT > frontend/index.html
@@ -131,7 +151,6 @@ cat <<EOT > frontend/index.html
     button {
       padding: 10px 20px;
       font-size: 1.2rem;
-      margin: 10px;
       cursor: pointer;
     }
     #counter {
@@ -154,72 +173,9 @@ cat <<EOT > frontend/index.html
 EOT
 
 cat <<EOT > frontend/script.js
-import { createVlayerClient } from "@vlayer/sdk";
-import { createWalletClient } from "viem";
-
-const vlayer = createVlayerClient();
-
-const client = createWalletClient({
-  // Tambahkan konfigurasi klien wallet Anda
-});
-
-const proverContractAddress = "ALAMAT_PROVER_CONTRACT"; // Ganti dengan alamat Prover
-const verifierContractAddress = "ALAMAT_VERIFIER_CONTRACT"; // Ganti dengan alamat Verifier
-
-let clickCount = 0;
-
-document.getElementById("clickButton").addEventListener("click", async () => {
-  try {
-    clickCount++;
-
-    const provingHash = await vlayer.prove({
-      address: proverContractAddress,
-      proverAbi: [], // Tambahkan ABI dari Prover
-      functionName: "main",
-      args: [await client.getAddress(), clickCount],
-      chainId: 1,
-    });
-
-    const provingResult = await vlayer.waitForProvingResult({ hash: provingHash });
-
-    const txHash = await client.writeContract({
-      address: verifierContractAddress,
-      abi: [], // Tambahkan ABI dari Verifier
-      functionName: "verify",
-      args: [provingResult, await client.getAddress(), clickCount],
-      chain: { id: 1 },
-      account: await client.getAddress(),
-    });
-
-    alert(`Click ${clickCount} verified and recorded on-chain!`);
-  } catch (error) {
-    console.error("Error during proving or verification:", error);
-    alert("Error during proving or verification.");
-  }
-});
-
-document.getElementById("connectWallet").addEventListener("click", async () => {
-  try {
-    const address = await client.getAddress();
-    alert(`Wallet connected: ${address}`);
-  } catch (error) {
-    console.error("Failed to connect wallet:", error);
-    alert("Failed to connect wallet.");
-  }
-});
-EOT
-
-# 7. Konfigurasi Testnet
-echo "⚙️ Konfigurasi Testnet"
-read -p "Masukkan JWT Token Anda: " JWT_TOKEN
-read -p "Masukkan Private Key Anda (contoh: 0x...): " PRIVATE_KEY
-
-mkdir -p vlayer
-cat <<EOT > vlayer/.env.testnet.local
-VLAYER_API_TOKEN=$JWT_TOKEN
-EXAMPLES_TEST_PRIVATE_KEY=$PRIVATE_KEY
-CHAIN_NAME=optimismSepolia
-JSON_RPC_URL=https://sepolia.optimism.io
+const proverAddress = "$CONTRACT_PROVER_ADDRESS"; // Alamat ClickGameProver
+const verifierAddress = "$CONTRACT_VERIFIER_ADDRESS"; // Alamat ClickGameVerifier
+// Rest of the frontend logic remains the same
 EOT
 
 # 8. Deploy Aplikasi Frontend
