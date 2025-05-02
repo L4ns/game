@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# Menghentikan skrip jika terjadi error
 set -e
 
-echo "🚀 Memulai instalasi, inisiasi, deploy, dan menjalankan Game Klik On-Chain dengan VLayer..."
+echo "🚀 Memulai instalasi, inisiasi, dan menjalankan Game Klik On-Chain dengan VLayer..."
 
 # 1. Cek dan Instal Prasyarat
 echo "🔍 Memeriksa prasyarat..."
@@ -36,12 +35,8 @@ fi
 if ! command -v vlayer &> /dev/null; then
     echo "❌ VLayer CLI tidak ditemukan. Menginstal VLayer CLI..."
     curl -SL https://install.vlayer.xyz | bash
-
-    # Muat ulang shell agar PATH diperbarui
     echo "🔄 Memuat ulang konfigurasi shell..."
     source ~/.bashrc
-
-    # Jalankan vlayerup untuk memasang vlayer
     if command -v vlayerup &> /dev/null; then
         echo "✅ vlayerup ditemukan. Menjalankan instalasi VLayer..."
         vlayerup
@@ -49,40 +44,67 @@ if ! command -v vlayer &> /dev/null; then
         echo "❌ Error: vlayerup tidak ditemukan setelah instalasi. Periksa kembali instalasi VLayer CLI."
         exit 1
     fi
-
     echo "✅ VLayer CLI berhasil diinstal."
 fi
 
-# 2. Inisialisasi Proyek VLayer
-echo "📂 Menginisialisasi proyek VLayer..."
+# 2. Inisialisasi Proyek
+echo "📂 Menginisialisasi proyek Foundry dan VLayer..."
 mkdir -p game-click-onchain && cd game-click-onchain
 if [ ! -f "foundry.toml" ]; then
     echo "🔧 File foundry.toml tidak ditemukan. Menjalankan forge init..."
     forge init || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
 fi
 vlayer init --existing || { echo "❌ Error: Gagal menginisialisasi proyek VLayer."; exit 1; }
-echo "✅ Inisialisasi proyek VLayer selesai."
+echo "✅ Inisialisasi proyek selesai."
 
 # 3. Build Kontrak Pintar
 echo "🔨 Membuild kontrak pintar..."
 forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
 echo "✅ Build kontrak selesai."
 
-# 4. Konfigurasi Testnet sesuai dokumentasi VLayer
-echo "⚙️ Mengkonfigurasi Testnet..."
+# 4. Konfigurasi Testnet (Mengikuti Dokumentasi VLayer)
+echo "⚙️ Mengkonfigurasi Testnet dan menyimpan ke vlayer/.env.testnet.local ..."
 
-# Meminta input JWT Token dan Private Key serta opsi penggantian jaringan
-while [[ -z "$VLAYER_API_TOKEN" ]]; do
-    read -p "Masukkan JWT API Token VLayer Anda (hanya valid 1 tahun): " VLAYER_API_TOKEN
-    if [[ -z "$VLAYER_API_TOKEN" ]]; then
-        echo "❌ API Token tidak boleh kosong. Silakan coba lagi."
-    fi
-done
+VLAYER_API_TOKEN=""
+EXAMPLES_TEST_PRIVATE_KEY=""
 
-while [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; do
-    read -p "Masukkan Private Key (format 0x...): " EXAMPLES_TEST_PRIVATE_KEY
-    if [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
-        echo "❌ Private Key tidak boleh kosong. Silakan coba lagi."
+while [[ -z "$VLAYER_API_TOKEN" || -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; do
+    echo ""
+    echo "Silakan pilih input yang ingin Anda masukkan:"
+    echo "  [1] Isi / ubah VLayer API Token"
+    echo "  [2] Isi / ubah Private Key"
+    echo "  [3] Lanjut jika sudah selesai"
+    read -p "Masukkan pilihan [1/2/3]: " PILIHAN
+
+    case $PILIHAN in
+        1)
+            read -p "Masukkan JWT API Token VLayer Anda (hanya valid 1 tahun): " VLAYER_API_TOKEN
+            if [[ -z "$VLAYER_API_TOKEN" ]]; then
+                echo "❌ API Token tidak boleh kosong!"
+            fi
+            ;;
+        2)
+            read -p "Masukkan Private Key (format 0x...): " EXAMPLES_TEST_PRIVATE_KEY
+            if [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
+                echo "❌ Private Key tidak boleh kosong!"
+            fi
+            ;;
+        3)
+            if [[ -z "$VLAYER_API_TOKEN" ]]; then
+                echo "❌ API Token masih kosong!"
+            fi
+            if [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
+                echo "❌ Private Key masih kosong!"
+            fi
+            ;;
+        *)
+            echo "Pilihan tidak valid. Silakan pilih 1, 2, atau 3."
+            ;;
+    esac
+
+    # Jika user memilih lanjut (3) dan semua input sudah terisi, keluar loop
+    if [[ $PILIHAN == 3 && -n "$VLAYER_API_TOKEN" && -n "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
+        break
     fi
 done
 
@@ -111,23 +133,15 @@ JSON_RPC_URL=$JSON_RPC_URL
 EOT
 echo "✅ Konfigurasi testnet selesai dengan API Token, Private Key, dan jaringan yang dipilih."
 
-# 5. Install Dependensi Typescript
-echo "📦 Menginstal dependensi Typescript di folder VLayer..."
-cd vlayer
-bun install || { echo "❌ Error: Gagal menginstal dependensi Typescript."; exit 1; }
-cd ..
+echo ""
+echo "📢 Selanjutnya, dari dalam folder vlayer, jalankan:"
+echo "    bun install"
+echo "    bun run prove:testnet"
+echo ""
+echo "Catatan: JWT token berlaku 1 tahun, setelah itu Anda harus generate ulang token baru."
+echo ""
 
-# 6. Jalankan prove testnet sesuai dokumentasi
-echo "🚀 Menjalankan contoh prove testnet (bun run prove:testnet)..."
-cd vlayer
-if ! bun run prove:testnet; then
-    echo "❌ Error: Gagal menjalankan prove:testnet."
-    exit 1
-fi
-cd ..
-echo "✅ Berhasil menjalankan prove:testnet."
-
-# 7. Menyiapkan Frontend
+# 5. (Opsional) Setup Frontend
 echo "🌍 Menyiapkan aplikasi frontend..."
 mkdir -p vlayer/frontend
 cat <<EOF > vlayer/frontend/index.html
@@ -154,7 +168,7 @@ async function connectWallet() {
     if (typeof window.ethereum !== "undefined") {
         try {
             const provider = new ethers.providers.Web3Provider(window.ethereum);
-            await provider.send("eth_requestAccounts", []); // Meminta akses ke wallet
+            await provider.send("eth_requestAccounts", []);
             const signer = provider.getSigner();
             console.log("Wallet connected:", await signer.getAddress());
             document.getElementById("walletInfo").innerText = "Wallet: " + await signer.getAddress();
@@ -170,7 +184,7 @@ document.getElementById("connectWallet").addEventListener("click", connectWallet
 EOF
 echo "✅ Aplikasi frontend berhasil disiapkan."
 
-# 8. Menjalankan Aplikasi Frontend
-echo "🌍 Menjalankan aplikasi frontend..."
-cd vlayer
-bun run web:dev || { echo "❌ Error: Gagal menjalankan aplikasi frontend."; exit 1; }
+echo ""
+echo "🚀 Untuk mengembangkan frontend, jalankan:"
+echo "    cd vlayer"
+echo "    bun run web:dev"
