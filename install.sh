@@ -20,7 +20,7 @@ if [ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]; then
     exit 1
 fi
 
-# 2. Chain dan RPC default jika belum diisi
+# 2. Chain dan RPC default ke OP Sepolia
 DEFAULT_CHAIN_NAME="optimismSepolia"
 DEFAULT_RPC_URL="https://sepolia.optimism.io"
 CHAIN_NAME="${CHAIN_NAME:-$DEFAULT_CHAIN_NAME}"
