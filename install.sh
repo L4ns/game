@@ -1,10 +1,40 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Setup Game Klik On-Chain dengan VLayer (Non-Interaktif Friendly)"
+echo "🚀 Setup Game Klik On-Chain dengan VLayer (Tanpa Menu Interaktif)"
 
-# 1. Cek dan install prasyarat
-echo "🔍 Memeriksa prasyarat..."
+# 1. Pastikan ENV sudah diisi, jika tidak, beri instruksi jelas dan exit
+if [ -z "$VLAYER_API_TOKEN" ]; then
+    echo "❌ VLAYER_API_TOKEN belum diisi."
+    echo "Jalankan dengan:"
+    echo "  curl -sSL https://raw.githubusercontent.com/namamu/file.sh | \\"
+    echo "    VLAYER_API_TOKEN=isi_tokenmu EXAMPLES_TEST_PRIVATE_KEY=isi_privkeymu bash"
+    exit 1
+fi
+
+if [ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]; then
+    echo "❌ EXAMPLES_TEST_PRIVATE_KEY belum diisi."
+    echo "Jalankan dengan:"
+    echo "  curl -sSL https://raw.githubusercontent.com/namamu/file.sh | \\"
+    echo "    VLAYER_API_TOKEN=isi_tokenmu EXAMPLES_TEST_PRIVATE_KEY=isi_privkeymu bash"
+    exit 1
+fi
+
+# 2. Chain dan RPC default jika belum diisi
+DEFAULT_CHAIN_NAME="optimismSepolia"
+DEFAULT_RPC_URL="https://sepolia.optimism.io"
+CHAIN_NAME="${CHAIN_NAME:-$DEFAULT_CHAIN_NAME}"
+JSON_RPC_URL="${JSON_RPC_URL:-$DEFAULT_RPC_URL}"
+
+echo "📦 Data konfigurasi:"
+echo "  VLAYER_API_TOKEN          = (disembunyikan)"
+echo "  EXAMPLES_TEST_PRIVATE_KEY = (disembunyikan)"
+echo "  CHAIN_NAME                = $CHAIN_NAME"
+echo "  JSON_RPC_URL              = $JSON_RPC_URL"
+
+# 3. Install dependency (otomatis, tanpa input!)
+echo "🔍 Memeriksa/menginstal prasyarat..."
+
 if ! command -v git &> /dev/null; then
     echo "❌ Git tidak ditemukan. Menginstal Git..."
     sudo apt-get update && sudo apt-get install -y git
@@ -36,35 +66,8 @@ if ! command -v vlayer &> /dev/null; then
     fi
 fi
 
-# 2. Ambil ENV, wajib ada
-if [ -z "$VLAYER_API_TOKEN" ]; then
-    echo "❌ VLAYER_API_TOKEN belum diisi."
-    echo "Jalankan dengan:"
-    echo "  curl -sSL https://raw.githubusercontent.com/namamu/file.sh | \\"
-    echo "    VLAYER_API_TOKEN=isi_tokenmu EXAMPLES_TEST_PRIVATE_KEY=isi_privkeymu bash"
-    exit 1
-fi
-if [ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]; then
-    echo "❌ EXAMPLES_TEST_PRIVATE_KEY belum diisi."
-    echo "Jalankan dengan:"
-    echo "  curl -sSL https://raw.githubusercontent.com/namamu/file.sh | \\"
-    echo "    VLAYER_API_TOKEN=isi_tokenmu EXAMPLES_TEST_PRIVATE_KEY=isi_privkeymu bash"
-    exit 1
-fi
-
-DEFAULT_CHAIN_NAME="optimismSepolia"
-DEFAULT_RPC_URL="https://sepolia.optimism.io"
-CHAIN_NAME="${CHAIN_NAME:-$DEFAULT_CHAIN_NAME}"
-JSON_RPC_URL="${JSON_RPC_URL:-$DEFAULT_RPC_URL}"
-
-echo "📦 Data konfigurasi yang digunakan:"
-echo "  VLAYER_API_TOKEN          = (disembunyikan)"
-echo "  EXAMPLES_TEST_PRIVATE_KEY = (disembunyikan)"
-echo "  CHAIN_NAME                = $CHAIN_NAME"
-echo "  JSON_RPC_URL              = $JSON_RPC_URL"
-
-# 3. Setup proyek
-echo "📂 Menginisialisasi project Foundry dan VLayer..."
+# 4. Setup project
+echo "📂 Inisialisasi Foundry & VLayer..."
 mkdir -p game-click-onchain && cd game-click-onchain
 
 if [ ! -f "foundry.toml" ]; then
@@ -73,10 +76,10 @@ if [ ! -f "foundry.toml" ]; then
 fi
 vlayer init --existing || { echo "❌ Error: Gagal inisialisasi VLayer."; exit 1; }
 
-echo "🔨 Membuild kontrak pintar..."
-forge build || { echo "❌ Error: Gagal membuild kontrak."; exit 1; }
+echo "🔨 Membuild kontrak..."
+forge build || { echo "❌ Error: Gagal build kontrak."; exit 1; }
 
-# 4. Buat file env
+# 5. Buat file .env
 mkdir -p vlayer
 cat <<EOT > vlayer/.env.testnet.local
 VLAYER_API_TOKEN=$VLAYER_API_TOKEN
@@ -86,8 +89,7 @@ JSON_RPC_URL=$JSON_RPC_URL
 EOT
 echo "✅ File konfigurasi vlayer/.env.testnet.local selesai dibuat!"
 
-# 5. (Opsional) Setup Frontend
-echo "🌍 Menyiapkan aplikasi frontend sederhana..."
+# 6. (Opsional) Setup Frontend minimal
 mkdir -p vlayer/frontend
 cat <<EOF > vlayer/frontend/index.html
 <!DOCTYPE html>
@@ -126,9 +128,9 @@ async function connectWallet() {
 
 document.getElementById("connectWallet").addEventListener("click", connectWallet);
 EOF
+
 echo "✅ Aplikasi frontend sederhana sudah disiapkan."
 
-# 6. Instruksi lanjut
 echo
 echo "✅ SEMUA BERHASIL!"
 echo "Selanjutnya, dari dalam folder game-click-onchain/vlayer jalankan:"
