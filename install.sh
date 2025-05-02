@@ -1,146 +1,82 @@
 #!/bin/bash
-
 set -e
 
-echo "🚀 Memulai instalasi, inisiasi, dan menjalankan Game Klik On-Chain dengan VLayer..."
+echo "🚀 Setup Game Klik On-Chain dengan VLayer (Non-Interaktif Friendly)"
 
-# 1. Cek dan Instal Prasyarat
+# 1. Cek dan install prasyarat
 echo "🔍 Memeriksa prasyarat..."
 if ! command -v git &> /dev/null; then
     echo "❌ Git tidak ditemukan. Menginstal Git..."
-    sudo apt-get update
-    sudo apt-get install -y git
+    sudo apt-get update && sudo apt-get install -y git
 fi
-
 if ! command -v curl &> /dev/null; then
     echo "❌ Curl tidak ditemukan. Menginstal Curl..."
     sudo apt-get install -y curl
 fi
-
 if ! command -v bun &> /dev/null; then
     echo "❌ Bun tidak ditemukan. Menginstal Bun..."
     curl -fsSL https://bun.sh/install | bash
-    source ~/.bashrc
-    echo "✅ Bun berhasil diinstal."
+    source ~/.bashrc || true
 fi
-
 if ! command -v forge &> /dev/null; then
     echo "❌ Forge tidak ditemukan. Menginstal Forge..."
     curl -L https://foundry.paradigm.xyz | bash
-    source ~/.bashrc
+    source ~/.bashrc || true
     foundryup
-    echo "✅ Forge berhasil diinstal."
 fi
-
 if ! command -v vlayer &> /dev/null; then
     echo "❌ VLayer CLI tidak ditemukan. Menginstal VLayer CLI..."
     curl -SL https://install.vlayer.xyz | bash
-    echo "🔄 Memuat ulang konfigurasi shell..."
-    source ~/.bashrc
+    source ~/.bashrc || true
     if command -v vlayerup &> /dev/null; then
-        echo "✅ vlayerup ditemukan. Menjalankan instalasi VLayer..."
         vlayerup
     else
-        echo "❌ Error: vlayerup tidak ditemukan setelah instalasi. Periksa kembali instalasi VLayer CLI."
+        echo "❌ Error: vlayerup tidak ditemukan setelah instalasi."
         exit 1
     fi
-    echo "✅ VLayer CLI berhasil diinstal."
 fi
 
-# 2. Inisialisasi Proyek
-echo "📂 Menginisialisasi proyek Foundry dan VLayer..."
-mkdir -p game-click-onchain && cd game-click-onchain
-if [ ! -f "foundry.toml" ]; then
-    echo "🔧 File foundry.toml tidak ditemukan. Menjalankan forge init..."
-    forge init || { echo "❌ Error: Gagal menginisialisasi proyek Foundry."; exit 1; }
+# 2. Ambil ENV, wajib ada
+if [ -z "$VLAYER_API_TOKEN" ]; then
+    echo "❌ VLAYER_API_TOKEN belum diisi."
+    echo "Jalankan dengan:"
+    echo "  curl -sSL https://raw.githubusercontent.com/namamu/file.sh | \\"
+    echo "    VLAYER_API_TOKEN=isi_tokenmu EXAMPLES_TEST_PRIVATE_KEY=isi_privkeymu bash"
+    exit 1
 fi
-vlayer init --existing || { echo "❌ Error: Gagal menginisialisasi proyek VLayer."; exit 1; }
-echo "✅ Inisialisasi proyek selesai."
-
-# 3. Build Kontrak Pintar
-echo "🔨 Membuild kontrak pintar..."
-forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
-echo "✅ Build kontrak selesai."
-
-# 4. Konfigurasi Testnet dengan Opsi Pilihan & Interaktif
-echo "⚙️ Mengkonfigurasi Testnet dan menyimpan ke vlayer/.env.testnet.local ..."
-
-VLAYER_API_TOKEN=""
-EXAMPLES_TEST_PRIVATE_KEY=""
-
-while true; do
-    echo ""
-    echo "Silakan isi data berikut atau pilih menu (boleh langsung isi token/key di sini):"
-    echo "  [1] Isi / ubah VLayer API Token"
-    echo "  [2] Isi / ubah Private Key"
-    echo "  [3] Lanjut jika sudah selesai"
-    echo "  [quit] Keluar dari setup"
-    [ -n "$VLAYER_API_TOKEN" ] && echo "     ✔ VLayer API Token sudah diisi"
-    [ -n "$EXAMPLES_TEST_PRIVATE_KEY" ] && echo "     ✔ Private Key sudah diisi"
-    read -p "Pilihan atau langsung isi (mis: eyJhb..., 0x..., 1, 2, 3): " INPUT
-
-    case "$INPUT" in
-        1)
-            read -p "Masukkan JWT API Token VLayer Anda (hanya valid 1 tahun): " VLAYER_API_TOKEN
-            if [[ -z "$VLAYER_API_TOKEN" ]]; then
-                echo "❌ API Token tidak boleh kosong!"
-            else
-                echo "✅ API Token disimpan!"
-            fi
-            ;;
-        2)
-            read -p "Masukkan Private Key (format 0x...): " EXAMPLES_TEST_PRIVATE_KEY
-            if [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
-                echo "❌ Private Key tidak boleh kosong!"
-            else
-                echo "✅ Private Key disimpan!"
-            fi
-            ;;
-        3)
-            if [[ -z "$VLAYER_API_TOKEN" ]]; then
-                echo "❌ API Token masih kosong!"
-                continue
-            fi
-            if [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
-                echo "❌ Private Key masih kosong!"
-                continue
-            fi
-            break
-            ;;
-        quit|QUIT)
-            echo "👋 Setup dibatalkan oleh user."
-            exit 0
-            ;;
-        eyJhb*|eyJ0e*) # kemungkinan JWT
-            VLAYER_API_TOKEN="$INPUT"
-            echo "✅ API Token disimpan!"
-            ;;
-        0x*)
-            EXAMPLES_TEST_PRIVATE_KEY="$INPUT"
-            echo "✅ Private Key disimpan!"
-            ;;
-        *)
-            echo "Pilihan tidak valid. Ketik 1, 2, 3, quit, atau langsung isi token/private key."
-            ;;
-    esac
-done
+if [ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]; then
+    echo "❌ EXAMPLES_TEST_PRIVATE_KEY belum diisi."
+    echo "Jalankan dengan:"
+    echo "  curl -sSL https://raw.githubusercontent.com/namamu/file.sh | \\"
+    echo "    VLAYER_API_TOKEN=isi_tokenmu EXAMPLES_TEST_PRIVATE_KEY=isi_privkeymu bash"
+    exit 1
+fi
 
 DEFAULT_CHAIN_NAME="optimismSepolia"
 DEFAULT_RPC_URL="https://sepolia.optimism.io"
+CHAIN_NAME="${CHAIN_NAME:-$DEFAULT_CHAIN_NAME}"
+JSON_RPC_URL="${JSON_RPC_URL:-$DEFAULT_RPC_URL}"
 
-echo "Pengaturan jaringan default:"
-echo "  CHAIN_NAME    : $DEFAULT_CHAIN_NAME"
-echo "  JSON_RPC_URL  : $DEFAULT_RPC_URL"
-read -p "Gunakan jaringan default di atas? [Y/n]: " JAWAB
+echo "📦 Data konfigurasi yang digunakan:"
+echo "  VLAYER_API_TOKEN          = (disembunyikan)"
+echo "  EXAMPLES_TEST_PRIVATE_KEY = (disembunyikan)"
+echo "  CHAIN_NAME                = $CHAIN_NAME"
+echo "  JSON_RPC_URL              = $JSON_RPC_URL"
 
-if [[ "$JAWAB" =~ ^[Nn]$ ]]; then
-    read -p "Masukkan CHAIN_NAME (misal: baseSepolia): " CHAIN_NAME
-    read -p "Masukkan JSON_RPC_URL (misal: https://sepolia.base.org): " JSON_RPC_URL
-else
-    CHAIN_NAME="$DEFAULT_CHAIN_NAME"
-    JSON_RPC_URL="$DEFAULT_RPC_URL"
+# 3. Setup proyek
+echo "📂 Menginisialisasi project Foundry dan VLayer..."
+mkdir -p game-click-onchain && cd game-click-onchain
+
+if [ ! -f "foundry.toml" ]; then
+    echo "🔧 File foundry.toml tidak ditemukan. Menjalankan forge init..."
+    forge init || { echo "❌ Error: Gagal inisialisasi Foundry."; exit 1; }
 fi
+vlayer init --existing || { echo "❌ Error: Gagal inisialisasi VLayer."; exit 1; }
 
+echo "🔨 Membuild kontrak pintar..."
+forge build || { echo "❌ Error: Gagal membuild kontrak."; exit 1; }
+
+# 4. Buat file env
 mkdir -p vlayer
 cat <<EOT > vlayer/.env.testnet.local
 VLAYER_API_TOKEN=$VLAYER_API_TOKEN
@@ -148,18 +84,10 @@ EXAMPLES_TEST_PRIVATE_KEY=$EXAMPLES_TEST_PRIVATE_KEY
 CHAIN_NAME=$CHAIN_NAME
 JSON_RPC_URL=$JSON_RPC_URL
 EOT
-echo "✅ Konfigurasi testnet selesai dengan API Token, Private Key, dan jaringan yang dipilih."
-
-echo ""
-echo "📢 Selanjutnya, dari dalam folder vlayer, jalankan:"
-echo "    bun install"
-echo "    bun run prove:testnet"
-echo ""
-echo "Catatan: JWT token berlaku 1 tahun, setelah itu Anda harus generate ulang token baru."
-echo ""
+echo "✅ File konfigurasi vlayer/.env.testnet.local selesai dibuat!"
 
 # 5. (Opsional) Setup Frontend
-echo "🌍 Menyiapkan aplikasi frontend..."
+echo "🌍 Menyiapkan aplikasi frontend sederhana..."
 mkdir -p vlayer/frontend
 cat <<EOF > vlayer/frontend/index.html
 <!DOCTYPE html>
@@ -187,7 +115,6 @@ async function connectWallet() {
             const provider = new ethers.providers.Web3Provider(window.ethereum);
             await provider.send("eth_requestAccounts", []);
             const signer = provider.getSigner();
-            console.log("Wallet connected:", await signer.getAddress());
             document.getElementById("walletInfo").innerText = "Wallet: " + await signer.getAddress();
         } catch (error) {
             console.error("Error connecting to wallet:", error);
@@ -199,9 +126,17 @@ async function connectWallet() {
 
 document.getElementById("connectWallet").addEventListener("click", connectWallet);
 EOF
-echo "✅ Aplikasi frontend berhasil disiapkan."
+echo "✅ Aplikasi frontend sederhana sudah disiapkan."
 
-echo ""
-echo "🚀 Untuk mengembangkan frontend, jalankan:"
-echo "    cd vlayer"
+# 6. Instruksi lanjut
+echo
+echo "✅ SEMUA BERHASIL!"
+echo "Selanjutnya, dari dalam folder game-click-onchain/vlayer jalankan:"
+echo "    bun install"
+echo "    bun run prove:testnet"
+echo
+echo "Untuk frontend:"
+echo "    cd game-click-onchain/vlayer"
 echo "    bun run web:dev"
+echo
+echo "Jika ingin ganti network, tambahkan CHAIN_NAME dan JSON_RPC_URL pada perintah."
