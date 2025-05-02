@@ -62,13 +62,13 @@ echo "🔨 Membuild kontrak pintar..."
 forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
 echo "✅ Build kontrak selesai."
 
-# 4. Konfigurasi Testnet (Mengikuti Dokumentasi VLayer)
+# 4. Konfigurasi Testnet dengan Opsi Pilihan
 echo "⚙️ Mengkonfigurasi Testnet dan menyimpan ke vlayer/.env.testnet.local ..."
 
 VLAYER_API_TOKEN=""
 EXAMPLES_TEST_PRIVATE_KEY=""
 
-while [[ -z "$VLAYER_API_TOKEN" || -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; do
+while true; do
     echo ""
     echo "Silakan pilih input yang ingin Anda masukkan:"
     echo "  [1] Isi / ubah VLayer API Token"
@@ -76,36 +76,38 @@ while [[ -z "$VLAYER_API_TOKEN" || -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; do
     echo "  [3] Lanjut jika sudah selesai"
     read -p "Masukkan pilihan [1/2/3]: " PILIHAN
 
-    case $PILIHAN in
+    case "$PILIHAN" in
         1)
             read -p "Masukkan JWT API Token VLayer Anda (hanya valid 1 tahun): " VLAYER_API_TOKEN
             if [[ -z "$VLAYER_API_TOKEN" ]]; then
                 echo "❌ API Token tidak boleh kosong!"
+            else
+                echo "✅ API Token disimpan!"
             fi
             ;;
         2)
             read -p "Masukkan Private Key (format 0x...): " EXAMPLES_TEST_PRIVATE_KEY
             if [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
                 echo "❌ Private Key tidak boleh kosong!"
+            else
+                echo "✅ Private Key disimpan!"
             fi
             ;;
         3)
             if [[ -z "$VLAYER_API_TOKEN" ]]; then
                 echo "❌ API Token masih kosong!"
+                continue
             fi
             if [[ -z "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
                 echo "❌ Private Key masih kosong!"
+                continue
             fi
+            break
             ;;
         *)
             echo "Pilihan tidak valid. Silakan pilih 1, 2, atau 3."
             ;;
     esac
-
-    # Jika user memilih lanjut (3) dan semua input sudah terisi, keluar loop
-    if [[ $PILIHAN == 3 && -n "$VLAYER_API_TOKEN" && -n "$EXAMPLES_TEST_PRIVATE_KEY" ]]; then
-        break
-    fi
 done
 
 DEFAULT_CHAIN_NAME="optimismSepolia"
