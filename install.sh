@@ -62,7 +62,7 @@ echo "🔨 Membuild kontrak pintar..."
 forge build || { echo "❌ Error: Gagal membuild kontrak pintar."; exit 1; }
 echo "✅ Build kontrak selesai."
 
-# 4. Konfigurasi Testnet dengan Opsi Pilihan
+# 4. Konfigurasi Testnet dengan Opsi Pilihan & Interaktif
 echo "⚙️ Mengkonfigurasi Testnet dan menyimpan ke vlayer/.env.testnet.local ..."
 
 VLAYER_API_TOKEN=""
@@ -70,13 +70,16 @@ EXAMPLES_TEST_PRIVATE_KEY=""
 
 while true; do
     echo ""
-    echo "Silakan pilih input yang ingin Anda masukkan:"
+    echo "Silakan isi data berikut atau pilih menu (boleh langsung isi token/key di sini):"
     echo "  [1] Isi / ubah VLayer API Token"
     echo "  [2] Isi / ubah Private Key"
     echo "  [3] Lanjut jika sudah selesai"
-    read -p "Masukkan pilihan [1/2/3]: " PILIHAN
+    echo "  [quit] Keluar dari setup"
+    [ -n "$VLAYER_API_TOKEN" ] && echo "     ✔ VLayer API Token sudah diisi"
+    [ -n "$EXAMPLES_TEST_PRIVATE_KEY" ] && echo "     ✔ Private Key sudah diisi"
+    read -p "Pilihan atau langsung isi (mis: eyJhb..., 0x..., 1, 2, 3): " INPUT
 
-    case "$PILIHAN" in
+    case "$INPUT" in
         1)
             read -p "Masukkan JWT API Token VLayer Anda (hanya valid 1 tahun): " VLAYER_API_TOKEN
             if [[ -z "$VLAYER_API_TOKEN" ]]; then
@@ -104,8 +107,20 @@ while true; do
             fi
             break
             ;;
+        quit|QUIT)
+            echo "👋 Setup dibatalkan oleh user."
+            exit 0
+            ;;
+        eyJhb*|eyJ0e*) # kemungkinan JWT
+            VLAYER_API_TOKEN="$INPUT"
+            echo "✅ API Token disimpan!"
+            ;;
+        0x*)
+            EXAMPLES_TEST_PRIVATE_KEY="$INPUT"
+            echo "✅ Private Key disimpan!"
+            ;;
         *)
-            echo "Pilihan tidak valid. Silakan pilih 1, 2, atau 3."
+            echo "Pilihan tidak valid. Ketik 1, 2, 3, quit, atau langsung isi token/private key."
             ;;
     esac
 done
